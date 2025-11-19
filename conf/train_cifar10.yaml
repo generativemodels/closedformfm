@@ -1,0 +1,36 @@
+net:
+  num_channels: 128
+
+optimizer:
+  batch_size: 128
+  lr: 0.0002
+  warmup: 5000
+  ema_decay: 0.9999
+  ema_start: 1000
+  grad_clip: 1
+
+loss:
+  expected_ucond: True
+  n_samples_mean: 128
+  batch_size_mean: 128
+  sigmamin: 0.0
+  model_name: "icfm"
+  rescaled: False
+  tmin: 0.
+  tmax: 1.
+  special: ''
+
+trainer:
+  total_steps: 500001
+  dump_models: True
+  dump_every: 100000
+  dump_points: False
+  nodump_before: 15000
+
+sampler:
+  integration_method: "euler"
+  integration_steps: 10
+
+data:
+  n_subsample: 50000
+  random_horizontal_flip: True

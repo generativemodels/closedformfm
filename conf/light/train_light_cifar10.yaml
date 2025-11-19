@@ -1,0 +1,15 @@
+# @package _global_
+defaults:
+  - /train_toy2d
+
+trainer:
+  total_steps: 101
+  dump_models: True
+  dump_every: 100
+  dump_points: False
+  nodump_before: 10
+
+
+data:
+  n_subsample: 512
+  random_horizontal_flip: True

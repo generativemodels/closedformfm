@@ -1,0 +1,33 @@
+net:
+  dim: 2
+  n_layers: 2
+  w: 64
+  decoupled: False
+
+optimizer:
+  batch_size: 128
+  lr: 0.001
+
+loss:
+  expected_ucond: True
+  batch_size_mean: 5000
+  sigmamin: 0.0
+  use_ot_sampler: False
+  rescaled: False
+  special: ''
+
+trainer:
+  n_epochs: 200
+  dump_models: False
+  dump_every: 100
+  dump_points: False
+
+sampler:
+  integration_method: "dopri5"
+  integration_steps: 100
+
+data:
+  seed: 0
+  n_gen_samples: 5_000
+
+run_name: 'toy${net.dim}d_bs${optimizer.batch_size}_lr${optimizer.lr}'
