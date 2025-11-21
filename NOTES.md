@@ -5,20 +5,35 @@
 ####
 
 ```bash
-export PYTHONPATH=$(pwd)/src:$PYTHONPATH
 
-eval "$(python src/train_toy2d.py -sc install=bash)"
-
+# trigger installation
+uv venv
 uv run src/train_toy2d.py
 
-# or to schedule with slurm
-uv run src/train_toy2d.py -m +slurm=cpu
+
+# activate the virtual environment, to used directly python without uv
+source .venv/bin/activate
+# for autocompletion with python ...
+eval "$(python src/train_toy2d.py -sc install=bash)"
 
 
-# Run light version for testing
-uv run src/train_toy2d.py +light=train_light_toy2d
-uv run src/train_toy2d.py -m +light=train_light_toy2d +slurm=cpu
 
+python src/train_toy2d.py +light=train_light_toy2d
+
+# or to schedule with slurm (from the frontend node)
+# - need "-m" for multirun, which is needed for the slurm launcher, even for a single run
+# - IMPORTANT: need to pip install so the slurm launcher finds the package correctly
+uv pip install -e .
+python src/train_toy2d.py -m +light=train_light_toy2d +slurm=cpu
+# or for JZ
+python src/train_toy2d.py -m +light=train_light_toy2d +slurm=jzv100
+
+
+
+# Remove the light=train_light_toy2d to run the full config
+uv pip install -e .
+python src/train_toy2d.py -m +slurm=cpu
+python src/train_toy2d.py -m +slurm=jzv100
 ```
 ####
 
@@ -35,6 +50,16 @@ cd prigml
 fg # for the password...
 # Ctrl+Z, bg
 mlflow server --port 3999
+```
+
+
+
+### WIP README.md
+
+Testing the project with minimal "light" configs:
+
+```bash
+uv run src/train_toy2d.py +light=train_light_toy2d
 ```
 
 
