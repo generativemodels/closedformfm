@@ -10,8 +10,7 @@ from omegaconf import OmegaConf
 
 
 total_num_gpus = 1
-use_cuda = torch.cuda.is_available()
-device = torch.device("cuda" if use_cuda else "cpu")
+
 
 num_workers = 2
 
@@ -30,7 +29,7 @@ def train(cfg):
     import torch
     from torchvision import datasets, transforms
     from tqdm import trange
-    from utils_cifar10 import ema, infiniteloop, model_mul
+    from utils.cifar10 import ema, infiniteloop, model_mul
     # generate_samples
     from torchcfm.conditional_flow_matching import (
         ConditionalFlowMatcher,
@@ -40,12 +39,12 @@ def train(cfg):
         pad_t_like_x
     )
     from torchcfm.models.unet.unet import UNetModelWrapper
-    from utils_metrics import flatten, getall
-    from utils_mean_cfm import get_full_velocity_field
+    from utils.metrics import flatten, getall
+    from utils.mean_cfm import get_full_velocity_field
 
     from torchvision.datasets.cifar import CIFAR10
     from fld.features.InceptionFeatureExtractor import InceptionFeatureExtractor
-    from compute_fid import compute_fid
+    from utils.compute_fid import compute_fid
 
     import mlflow
     from mlflow.models import infer_signature
@@ -55,6 +54,9 @@ def train(cfg):
     run = mlflow.active_run()
     run_id = run.info.run_id
     print("Training started")
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+
 
     num_channels = getall(cfg.net, 'num_channels')[0]
     batch_size, lr, warmup, ema_decay, ema_start, grad_clip = getall(
@@ -66,7 +68,8 @@ def train(cfg):
         'expected_ucond, n_samples_mean, batch_size_mean, sigmamin, model_name, rescaled, tmin, tmax')
     integration_method, integration_steps = getall(
         cfg.sampler, "integration_method, integration_steps")
-    n_subsample, random_horizontal_flip = getall(cfg.data, "n_subsample, random_horizontal_flip")
+    root, n_subsample, random_horizontal_flip = getall(
+        cfg.data, "root, n_subsample, random_horizontal_flip")
     print(n_subsample)
 
     mlflow.set_tag(
@@ -80,9 +83,9 @@ def train(cfg):
     OmegaConf.set_struct(cfg, True)
     mlflow.log_params(flatten(cfg, separator='__'))
     # TODO do better to avoid potential overwriting with multiple process
-    with open(f'{run_id}_config_dict.pkl', 'wb') as f:
-        pickle.dump(cfg, f)
-    mlflow.log_artifact(f'{run_id}_config_dict.pkl', name="config")
+    # with open(f'{run_id}_config_dict.pkl', 'wb') as f:
+    #     pickle.dump(cfg, f)
+    # mlflow.log_artifact(f'{run_id}_config_dict.pkl', name="config")
 
     torch.manual_seed(0)  # TODO better seeding
 
@@ -98,8 +101,9 @@ def train(cfg):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])
     # DATASETS/DATALOADER
+    # import ipdb; ipdb.set_trace()
     dataset = datasets.CIFAR10(
-        root="./data",
+        root=root,
         train=True,
         download=True,
         transform=transform,
@@ -110,14 +114,14 @@ def train(cfg):
 
     ft_extractor = InceptionFeatureExtractor(save_path="features")
     train_feat = ft_extractor.get_features(
-        CIFAR10(train=True, root="data", download=True), name="cifar10_train")
+        CIFAR10(train=True, root=root, download=True), name="cifar10_train")
 
     sampler = None
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
         sampler=sampler,
-        shuffle= True,
+        shuffle=True,
         num_workers=num_workers,
         drop_last=True,
     )
@@ -151,17 +155,11 @@ def train(cfg):
         dropout=0.1,
     ).to(
         device
-    )  # new dropout + bs of 128
-    # ).to(
-    #         rank
-    #     )  # new dropout + bs of 128
+    )
 
     ema_model = copy.deepcopy(net_model)
     optim = torch.optim.Adam(net_model.parameters(), lr=lr)
     sched = torch.optim.lr_scheduler.LambdaLR(optim, lr_lambda=warmup_lr)
-    # if parallel:
-    #     net_model = DistributedDataParallel(net_model, device_ids=[rank])
-    #     ema_model = DistributedDataParallel(ema_model, device_ids=[rank])
 
     # show model size
     model_size = 0
@@ -259,20 +257,14 @@ def train(cfg):
                             # Compute FID 5k online
                             print("FID 5K")
                             num_gen = 5_000
-                            fid = compute_fid(ema_model, num_gen, train_feat,
-                                              device, ft_extractor, batch_size_fid, integration_method=integration_method, integration_steps=integration_steps)
+                            fid = compute_fid(
+                                ema_model, num_gen, train_feat,
+                                device, ft_extractor, batch_size_fid,
+                                integration_method=integration_method,
+                                integration_steps=integration_steps)
                             metric_title = f"FID - {(num_gen // 1000)}k {integration_method} {integration_steps} steps"
                             mlflow.log_metric(
                                 metric_title, fid, step=global_step)
-                        # if (global_step % compute_fid50k_every == 0) and global_step > 0:
-                        #     num_gen = 50_000
-                        #     fid = compute_fid(
-                        #         ema_model, device, num_gen=num_gen,
-                        #         batch_size_fid=batch_size_fid,
-                        #         integration_method="euler")
-                        #     mlflow.log_metric(
-                        #         f"FID - {(num_gen // 1000)}k", fid,
-                        #         step=global_step)
 
                         if (np.log2(global_step).is_integer() or global_step % 50_000 == 0) and global_step >= nodump_before:
                             # import ipdb; ipdb.set_trace()
@@ -285,27 +277,6 @@ def train(cfg):
                             mlflow.pytorch.log_model(
                                 net_model, name=f'model_{global_step}',
                                 signature=signature)
-
-                    # sample and Saving the weights
-                    # if dump_every > 0 and global_step % dump_every == 0:
-                    #     generate_samples(
-                    #         net_model, parallel, savedir, global_step,
-                    #         net_="normal"
-                    #     )
-                    #     generate_samples(
-                    #         ema_model, parallel, savedir, global_step,
-                    #         net_="ema"
-                    #     )
-                    #     torch.save(
-                    #         {
-                    #             "net_model": net_model.state_dict(),
-                    #             "ema_model": ema_model.state_dict(),
-                    #             "sched": sched.state_dict(),
-                    #             "optim": optim.state_dict(),
-                    #             "step": global_step,
-                    #         },
-                    #         savedir + f"{model_name}_cifar10_weights_step_{global_step}.pt",
-                    #     )
 
 
 if __name__ == "__main__":

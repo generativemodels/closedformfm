@@ -4,7 +4,7 @@ defaults:
 
 trainer:
   total_steps: 101
-  dump_models: True
+  dump_models: False
   dump_every: 100
   dump_points: False
   nodump_before: 10
