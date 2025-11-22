@@ -42,7 +42,40 @@ python src/train_toy2d.py -m +slurm=jzv100
 ...
 
 ```
-####
+
+
+
+#### MLflow server (with back tunneling)
+
+Connect and tunnel:
+
+```bash
+# IF YOU HAVE A CONTROL CONNECTION, start the tunnel with:
+ssh -O forward -L 3839:localhost:31333 joecluster
+ssh joecluster
+
+# IF NOT, CONNECT AND TUNNEL
+ssh -L 3839:localhost:31333 joecluster
+```
+
+Schedule, back tunnel and start the mlflow server on the cluster (to avoid loading the frontend node):
+
+```bash
+tmux a
+srun -p LONG -t 6-00:00:00  -c 2 --mem=10G  --pty bash -i
+# THEN
+ssh -NT -i ~/.ssh/id_ed25519_betweencluster -oExitOnForwardFailure=yes -R 31333:localhost:3999 calcul-slurm-lahc-2 &
+trap "kill $!" EXIT
+cd closedformfm
+. .venv/bin/activate
+fg # for the password...
+# Ctrl+Z, bg
+mlflow server --backend-store-uri sqlite:///$HOME/mlflow.db --default-artifact-root $HOME/mlflow-artifacts --port 3999
+```
+
+
+
+#### OLD RANDOM
 
 ```bash
 ssh -L 3839:localhost:31333 labslurm
@@ -52,22 +85,16 @@ srun -p LONG -t 6-00:00:00  -c 2 --mem=10G  --pty bash -i
 
 ssh -NT -i ~/.ssh/id_ed25519_betweencluster -oExitOnForwardFailure=yes -R 31333:localhost:3999 calcul-slurm-lahc-2 &
 trap "kill $!" EXIT
-cd prigml
+cd closedformfm
 . .venv/bin/activate
 fg # for the password...
 # Ctrl+Z, bg
-mlflow server --port 3999
+mlflow server --backend-store-uri sqlite:///$HOME/mlflow.db --default-artifact-root $HOME/mlruns --port 3999
+
+
+http://locatlhost:3839
 ```
 
-
-
-### WIP README.md
-
-Testing the project with minimal "light" configs:
-
-```bash
-uv run src/train_toy2d.py +light=train_light_toy2d
-```
 
 
 

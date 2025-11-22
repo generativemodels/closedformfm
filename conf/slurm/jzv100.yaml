@@ -5,8 +5,8 @@ defaults:
   - override /hydra/launcher: submitit_slurm
 hydra:
   launcher:
-    _target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.SlurmLauncher
     name: ${hydra.job.name}
+    _target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.SlurmLauncher
     partition: "gpu_p2"
     nodes: 1
     gres: "gpu:1"

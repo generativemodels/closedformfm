@@ -1,5 +1,5 @@
 
-from utils.core import *
+from utils.core import hydra_main, mlflow_start
 
 # delay most imports to have faster access to hydra config from the command line
 
@@ -21,13 +21,11 @@ def train(cfg):
     from utils.otcfm import (
         compute_conditional_vector_field, sample_conditional_pt, sample_gaussian)
     from utils.mean_cfm import get_full_velocity_field
-    from utils.metrics import flatten, get_gen_samples, get_w_dist
+    from utils.metrics import get_gen_samples, get_w_dist
 
-    # Set our tracking server uri for logging
-    #mlflow.set_tracking_uri(uri="http://127.0.0.1:8080")
-    # Create a new MLflow Experiment
-    mlflow.set_experiment("toy2d")
-    mlflow.start_run()
+    # Create a new MLflow Experiment (and configure it automatically)
+    mlflow_start(cfg, "toy2d")
+
     dim = cfg.net.dim
     n_layers = cfg.net.n_layers
     w = cfg.net.w
@@ -48,17 +46,9 @@ def train(cfg):
     seed = cfg.data.seed
     n_gen_samples = cfg.data.n_gen_samples
 
-    run_name = cfg.run_name or f"E. u {int(expected_ucond)}, OT {int(use_ot_sampler)}, rescale {int(rescaled)}"
-    print(run_name)
-    mlflow.set_tag("mlflow.runName", run_name)
 
-    mlflow.log_params(flatten(cfg, separator='__'))
-    # TODO do better to avoid potential overwriting with multiple process
-    # with open('config_dict.pkl', 'wb') as f:
-    #    pickle.dump(cfg, f)
-    # mlflow.log_artifact(local_path='config_dict.pkl', artifact_path="config")
+    torch.manual_seed(seed)  # TODO better seeding (across np, torch etc)
 
-    torch.manual_seed(seed)  # TODO better seeding
     x1_train = sample_8gaussians(n_gen_samples)
     x1_test = sample_8gaussians(n_gen_samples)
     w_dist_train_test = get_w_dist(x1_train.numpy(), x1_test.numpy())

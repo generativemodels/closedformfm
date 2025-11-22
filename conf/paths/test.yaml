@@ -1,6 +1,7 @@
 # @package hydra
 job:
   env_set:
-    MLFLOW_TRACKING_URI: "file://${oc.env:HOME}/TEST-mlruns"
+    MLFLOW_TRACKING_URI: "sqlite:///${oc.env:HOME}/TEST-mlflow.db"
+    FORCE_MLFLOW_ARTIFACTS_DESTINATION: "${oc.env:HOME}/TEST-mlflow-artifacts/"
 sweep:
   dir: ${oc.env:HOME}/TEST-multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}

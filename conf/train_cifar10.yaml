@@ -1,3 +1,5 @@
+defaults:
+  - /base.yaml
 net:
   num_channels: 128
 
