@@ -1,8 +1,7 @@
 [project]
 name = "closedformfm"
 version = "0.1.0"
-description = "Code of the NeurIPS 2025 paper On the Closed-Form of Flow Matching: Generalization Does
-Not Arise from Target Stochasticity"
+description = "Code of the NeurIPS 2025 paper On the Closed-Form of Flow Matching: Generalization Does Not Arise from Target Stochasticity"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
